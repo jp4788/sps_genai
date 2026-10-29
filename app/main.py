@@ -1,3 +1,7 @@
+from app.gan_model import Generator
+from fastapi.responses import Response
+from torchvision.utils import save_image
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from app.embedding_model import calculate_embedding
 from app.cnn_model import CNN
@@ -64,3 +68,34 @@ async def classify_image(file: UploadFile = File(...)):
             status_code=400,
             detail="Invalid image file"
         )
+
+# Load the trained GAN generator
+gan_generator = Generator()
+
+gan_model_path = Path(__file__).with_name("gan_generator.pth")
+gan_generator.load_state_dict(
+    torch.load(gan_model_path, map_location="cpu", weights_only=True)
+)
+gan_generator.eval()
+
+
+@app.get("/generate")
+def generate_image():
+    noise = torch.randn(1, 100)
+
+    with torch.no_grad():
+        generated_image = gan_generator(noise)
+
+    buffer = BytesIO()
+    save_image(
+        generated_image,
+        buffer,
+        format="PNG",
+        normalize=True,
+        value_range=(-1, 1)
+    )
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="image/png"
+    )

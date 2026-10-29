@@ -1,13 +1,19 @@
+
 FROM python:3.11-slim
 
 WORKDIR /code
 
-RUN pip install uv
+RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock /code/
+COPY requirements-docker.txt /code/
 
-RUN uv sync --frozen --no-dev
+RUN uv pip install --system --no-cache \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.2.2+cpu torchvision==0.17.2+cpu
+
+RUN uv pip install --system --no-cache \
+    -r requirements-docker.txt
 
 COPY ./app /code/app
 
-CMD ["uv", "run", "fastapi", "run", "app/main.py", "--port", "80"]
+CMD ["fastapi", "run", "app/main.py", "--port", "80"]
